@@ -1,19 +1,19 @@
 <template>
   <div id="app">
-    <header class="app-header">
+    <!-- <header class="app-header">
       <div class="header-content">
         <h1>Graphic Designer</h1>
         <p class="subtitle">Create stunning 1920x1080 compositions</p>
       </div>
-    </header>
+    </header> -->
     
     <main class="app-main">
       <GraphicWidget />
     </main>
     
-    <footer class="app-footer">
+    <!-- <footer class="app-footer">
       <p>&copy; 2024 Graphic Designer. Built with Vue 3 & Konva.js</p>
-    </footer>
+    </footer> -->
   </div>
 </template>
 
@@ -80,7 +80,7 @@ body {
 }
 
 .app-main {
-  flex: 1;
+  /* flex: 1;
   padding: 2rem;
   max-width: 1400px;
   margin: 0 auto;
@@ -88,7 +88,7 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: calc(100vh - 200px);
+  min-height: calc(100vh - 200px); */
 }
 
 .app-footer {
