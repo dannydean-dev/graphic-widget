@@ -4,9 +4,12 @@
     <GraphicToolbar
       :image-count="images.length"
       :selected-image-id="selectedImageId"
+      :text-count="texts.length"
+      :selected-text-id="selectedTextId"
       @file-upload="handleFileUpload"
       @export="exportCanvas"
       @delete-selected="deleteSelectedImage"
+      @add-text="addText"
       @clear="clearCanvas"
     />
 
@@ -15,9 +18,15 @@
       ref="canvas"
       :images="images"
       :selected-image-id="selectedImageId"
+      :texts="texts"
+      :selected-text-id="selectedTextId"
+      :scale="canvasScale"
       @stage-click="handleStageClick"
-      @drag-end="handleDragEnd"
-      @transform-end="handleTransformEnd"
+      @image-drag-end="handleImageDragEnd"
+      @image-transform-end="handleImageTransformEnd"
+      @text-drag-end="handleTextDragEnd"
+      @text-transform-end="handleTextTransformEnd"
+      @text-edit="handleTextEdit"
     />
   </div>
 </template>
@@ -27,6 +36,7 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import GraphicToolbar from './Toolbar.vue'
 import GraphicCanvas from './Canvas.vue'
 import { ImageService } from '../services/ImageService.js'
+import { TextService } from '../services/TextService.js'
 import { ExportService } from '../services/ExportService.js'
 import './GraphicWidget.css'
 
@@ -40,8 +50,12 @@ export default {
     const canvas = ref(null)
     const images = ref([])
     const selectedImageId = ref(null)
+    const texts = ref([])
+    const selectedTextId = ref(null)
+    const canvasScale = ref(0.5)
     
     const imageService = new ImageService()
+    const textService = new TextService()
     
     const handleFileUpload = (event) => {
       const files = event.target.files
@@ -109,24 +123,35 @@ export default {
       
       if (clickedOnEmpty) {
         selectedImageId.value = null
+        selectedTextId.value = null
         return
       }
       
       // Check if clicked on an image
       if (e.target.getClassName() === 'Image') {
         selectedImageId.value = e.target.id()
+        selectedTextId.value = null
         
         // Bring the selected image to the front so selection handles are visible
         e.target.moveToTop()
       }
+      
+      // Check if clicked on text
+      if (e.target.getClassName() === 'Text') {
+        selectedTextId.value = e.target.id()
+        selectedImageId.value = null
+        
+        // Bring the selected text to the front so selection handles are visible
+        e.target.moveToTop()
+      }
     }
     
-    const handleDragEnd = (e) => {
+    const handleImageDragEnd = (e) => {
       const imageId = e.target.id()
       imageService.updateImagePosition(imageId, e.target.x(), e.target.y(), images.value)
     }
     
-    const handleTransformEnd = (e) => {
+    const handleImageTransformEnd = (e) => {
       const imageId = e.target.id()
       const width = e.target.width() * e.target.scaleX()
       const height = e.target.height() * e.target.scaleY()
@@ -140,6 +165,32 @@ export default {
       e.target.scaleY(1)
     }
     
+    const handleTextDragEnd = (e) => {
+      const textId = e.target.id()
+      textService.updateTextPosition(textId, e.target.x(), e.target.y(), texts.value)
+    }
+    
+    const handleTextTransformEnd = () => {
+      // Text doesn't need transform handling for now
+    }
+    
+    const handleTextEdit = (textId) => {
+      const text = texts.value.find(t => t.id === textId)
+      if (text) {
+        const newContent = prompt('Edit text:', text.content)
+        if (newContent !== null) {
+          textService.updateTextContent(textId, newContent, texts.value)
+        }
+      }
+    }
+    
+    const addText = () => {
+      const newText = textService.createText(200, 200, 'Double click to edit')
+      texts.value.push(newText)
+      selectedTextId.value = newText.id
+      selectedImageId.value = null
+    }
+    
     const exportCanvas = () => {
       if (canvas.value) {
         const stage = canvas.value.getStage()
@@ -151,12 +202,16 @@ export default {
     
     const clearCanvas = () => {
       imageService.clearImages(images.value)
+      textService.clearTexts(texts.value)
       selectedImageId.value = null
+      selectedTextId.value = null
     }
     
     const deleteSelectedImage = () => {
       if (selectedImageId.value) {
         deleteImageById(selectedImageId.value)
+      } else if (selectedTextId.value) {
+        deleteTextById(selectedTextId.value)
       }
     }
     
@@ -169,10 +224,31 @@ export default {
       }
     }
     
+    const deleteTextById = (textId) => {
+      if (textService.deleteText(textId, texts.value)) {
+        // Clear selection if this was the selected text
+        if (selectedTextId.value === textId) {
+          selectedTextId.value = null
+        }
+      }
+    }
+    
+    const handleZoomIn = () => {
+      canvasScale.value = Math.min(canvasScale.value * 1.2, 2.0)
+    }
+    
+    const handleZoomOut = () => {
+      canvasScale.value = Math.max(canvasScale.value / 1.2, 0.1)
+    }
+    
+    const handleZoomReset = () => {
+      canvasScale.value = 0.5
+    }
+    
     // Keyboard event handler
     const handleKeyDown = (event) => {
-      // Delete key for delete selected image
-      if (event.key === 'Delete' && selectedImageId.value) {
+      // Delete key for delete selected image or text
+      if (event.key === 'Delete' && (selectedImageId.value || selectedTextId.value)) {
         event.preventDefault()
         deleteSelectedImage()
       }
@@ -192,14 +268,25 @@ export default {
       canvas,
       images,
       selectedImageId,
+      texts,
+      selectedTextId,
+      canvasScale,
       handleFileUpload,
       handleStageClick,
-      handleDragEnd,
-      handleTransformEnd,
+      handleImageDragEnd,
+      handleImageTransformEnd,
+      handleTextDragEnd,
+      handleTextTransformEnd,
+      handleTextEdit,
+      addText,
+      handleZoomIn,
+      handleZoomOut,
+      handleZoomReset,
       exportCanvas,
       clearCanvas,
       deleteSelectedImage,
-      deleteImageById
+      deleteImageById,
+      deleteTextById
     }
   }
 }
